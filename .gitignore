@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+
+# Niemals Zugangsdaten oder Mail-Daten einchecken
+config.env
+.env
+*.env
+!config.env.example
+token_cache.json
+outbox/
+downloads/
