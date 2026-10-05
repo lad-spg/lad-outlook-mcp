@@ -12,6 +12,7 @@ import os
 import select
 import sys
 import threading
+import warnings
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 from pathlib import Path
@@ -110,11 +111,14 @@ class Auth:
         print_fn(flow["message"])
         return self._app.acquire_token_by_device_flow(flow)
 
-    def _login_browser(self, print_fn, timeout: int = 600) -> dict:
+    def _login_browser(self, print_fn, timeout: int = 1800) -> dict:
         redirect = urlparse(self._config.redirect_uri)
         if redirect.hostname not in ("localhost", "127.0.0.1"):
             raise RuntimeError("OUTLOOK_REDIRECT_URI muss auf localhost zeigen.")
-        flow = self._app.initiate_auth_code_flow(self._config.scopes, redirect_uri=self._config.redirect_uri)
+        with warnings.catch_warnings():
+            # MSAL empfiehlt form_post; der lokale Listener nutzt bewusst Query-Parameter (PKCE + state).
+            warnings.simplefilter("ignore", UserWarning)
+            flow = self._app.initiate_auth_code_flow(self._config.scopes, redirect_uri=self._config.redirect_uri)
         received: dict[str, dict] = {}
 
         class Handler(BaseHTTPRequestHandler):

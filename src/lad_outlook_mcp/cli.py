@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "login":
         try:
-            claims = auth.login()
+            claims = auth.login(print_fn=lambda *a, **k: print(*a, **k, flush=True))
         except (RuntimeError, NotLoggedIn) as e:
             return _err(str(e))
         print(f"Angemeldet als {claims.get('preferred_username', '?')} (Modus: {config.mode}).")
