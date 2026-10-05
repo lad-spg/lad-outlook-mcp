@@ -48,6 +48,8 @@ def _split_list(value: str) -> frozenset[str]:
 class Config:
     client_id: str
     tenant_id: str
+    client_secret: str = field(default="", repr=False)
+    redirect_uri: str = "http://localhost:3333/auth/callback"
     mode: str = "send"
     confirm_send: str = "auto"
     allowed_domains: frozenset[str] = field(default_factory=frozenset)
@@ -106,9 +108,13 @@ class Config:
         except ValueError as e:
             raise ConfigError(f"Ungültige Zahl in der Konfiguration: {e}") from e
 
+        if env.get("OUTLOOK_REDIRECT_URI"):
+            kwargs["redirect_uri"] = env["OUTLOOK_REDIRECT_URI"].strip()
+
         return cls(
             client_id=client_id,
             tenant_id=tenant_id,
+            client_secret=env.get("OUTLOOK_CLIENT_SECRET", "").strip(),
             mode=mode,
             confirm_send=confirm,
             allowed_domains=_split_list(env.get("OUTLOOK_ALLOWED_RECIPIENT_DOMAINS", "")),

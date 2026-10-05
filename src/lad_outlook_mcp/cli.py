@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Modus:          {config.mode}  (Rechte: {', '.join(config.scopes)})")
         print(f"Empfänger:      {', '.join(sorted(config.allowed_domains | config.allowed_recipients)) or 'alle erlaubt'}")
         print(f"Bestätigung:    {config.confirm_send}")
+        print(f"Anmeldeart:     {'Browser (App mit Client-Secret)' if config.client_secret else 'Device-Code'}")
         print(f"Daten-Ordner:   {config.data_dir}")
         try:
             account = auth.account()
