@@ -1,44 +1,14 @@
 # App-Registrierung in Entra ID
 
-Einmalig nötig. Dauert ca. 5 Minuten. Für die Zustimmung zu den Rechten
-ist eventuell ein Admin nötig (je nach Tenant-Einstellung).
+Die vollständige Schritt-für-Schritt-Anleitung (beide Varianten: bestehende App mit
+Client-Secret oder neue App ohne Secret) steht in der [README, Teil A](../README.md#3-teil-a--die-app-registrierung-bei-microsoft).
 
-## Neue App anlegen (empfohlen)
+Kurzfassung der Anforderungen an die App-Registrierung:
 
-1. <https://entra.microsoft.com> öffnen → **Anwendungen → App-Registrierungen → Neue Registrierung**.
-2. Name: `lad-outlook-mcp`
-3. Kontotypen: **Nur Konten in diesem Organisationsverzeichnis** (Single Tenant).
-4. Umleitungs-URI: leer lassen → **Registrieren**.
-5. Auf der Übersichtsseite notieren:
-   - **Anwendungs-ID (Client)** → `OUTLOOK_CLIENT_ID`
-   - **Verzeichnis-ID (Mandant)** → `OUTLOOK_TENANT_ID`
-
-## Device-Code-Anmeldung erlauben
-
-6. **Authentifizierung** → ganz unten **Öffentliche Clientflows zulassen** → **Ja** → Speichern.
-
-## Rechte vergeben
-
-7. **API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen**:
-   - `User.Read` (meist schon da)
-   - `Mail.ReadWrite`
-   - `Mail.Send`
-
-   Für reinen Lesebetrieb (`OUTLOOK_MODE=readonly`) reicht `Mail.Read`.
-8. Falls der Tenant es verlangt: **Administratorzustimmung für … erteilen**.
-
-**Nicht** nötig und bewusst **nicht** verwenden:
-- Anwendungsberechtigungen (Application permissions) – die würden Zugriff auf *alle* Postfächer geben.
-- Geheime Clientschlüssel / Zertifikate.
-
-## Vorhandene App wiederverwenden?
-
-Auf `fm` existiert bereits eine Registrierung aus dem alten `outlook-mcp` (mit Client-Secret).
-Technisch geht die Wiederverwendung (Schritte 6–8 dort ausführen). Eine eigene App ist aber
-sauberer: Rechte und Anmeldungen bleiben getrennt nachvollziehbar und lassen sich einzeln
-widerrufen.
-
-## Zugriff widerrufen
-
-- Lokal: `lad-outlook-mcp logout`
-- Zentral: Entra → **Unternehmensanwendungen → lad-outlook-mcp → Benutzer und Gruppen / Berechtigungen** bzw. die App löschen.
+| | Variante 1 (bestehend, mit Secret) | Variante 2 (neu, ohne Secret) |
+|---|---|---|
+| Plattform | Web, Redirect `http://localhost:3333/auth/callback` | keine Redirect-URI nötig |
+| Öffentliche Clientflows | egal | **Ja** |
+| Client-Secret | ja (`OUTLOOK_CLIENT_SECRET`) | nein |
+| Delegierte Graph-Rechte | `User.Read`, `Mail.ReadWrite`, `Mail.Send` | gleich |
+| Anwendungsberechtigungen | **keine** | **keine** |
