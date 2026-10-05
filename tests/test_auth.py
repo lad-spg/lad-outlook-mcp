@@ -36,7 +36,7 @@ def test_browser_login_via_local_redirect(tmp_path):
     fake = FakeApp()
     auth._msal_app = fake
     out = {}
-    t = threading.Thread(target=lambda: out.update(claims=auth.login(print_fn=lambda *a, **k: None)))
+    t = threading.Thread(target=lambda: out.update(claims=auth.login(print_fn=lambda *a, **k: None, device_code=True)))
     t.start()
     for _ in range(50):
         try:
@@ -51,3 +51,45 @@ def test_browser_login_via_local_redirect(tmp_path):
     assert "abgeschlossen" in body.decode()
     assert fake.got == {"code": "XYZ", "state": "abc"}
     assert out["claims"]["preferred_username"] == "me@firma.de"
+
+
+class FakePublicApp:
+    def __init__(self):
+        self.used = None
+
+    def acquire_token_interactive(self, scopes, **kw):
+        self.used = "interactive"
+        return {"access_token": "t", "id_token_claims": {"preferred_username": "me@firma.de"}}
+
+    def initiate_device_flow(self, scopes):
+        return {"user_code": "ABC", "message": "Code ABC eingeben"}
+
+    def acquire_token_by_device_flow(self, flow):
+        self.used = "device"
+        return {"access_token": "t", "id_token_claims": {}}
+
+
+def _public_auth(tmp_path):
+    auth = Auth(Config.load({"OUTLOOK_TOKEN_CACHE": str(tmp_path / "tc.json")}))
+    auth._msal_app = FakePublicApp()
+    return auth
+
+
+def test_login_picks_browser_with_display(tmp_path, monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":0")
+    auth = _public_auth(tmp_path)
+    auth.login(print_fn=lambda *a, **k: None)
+    assert auth._msal_app.used == "interactive"
+
+
+def test_login_picks_device_code_without_display_or_on_request(tmp_path, monkeypatch):
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+    auth = _public_auth(tmp_path)
+    auth.login(print_fn=lambda *a, **k: None)
+    assert auth._msal_app.used == "device"
+
+    monkeypatch.setenv("DISPLAY", ":0")
+    auth = _public_auth(tmp_path)
+    auth.login(print_fn=lambda *a, **k: None, device_code=True)
+    assert auth._msal_app.used == "device"

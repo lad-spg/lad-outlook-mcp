@@ -19,6 +19,11 @@ SCOPES_BY_MODE = {
 }
 
 
+# Microsoft-eigene, in jedem Tenant vorhandene Public-Client-App ("Microsoft Graph Command Line Tools",
+# auch von Microsoft Graph PowerShell genutzt). Damit ist keine eigene App-Registrierung nötig.
+GRAPH_CLI_CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"
+
+
 class ConfigError(Exception):
     pass
 
@@ -60,6 +65,10 @@ class Config:
     max_attachment_mb: int = 25
 
     @property
+    def uses_default_app(self) -> bool:
+        return self.client_id == GRAPH_CLI_CLIENT_ID
+
+    @property
     def scopes(self) -> list[str]:
         return SCOPES_BY_MODE[self.mode]
 
@@ -79,13 +88,13 @@ class Config:
 
         client_id = env.get("OUTLOOK_CLIENT_ID", "").strip()
         tenant_id = env.get("OUTLOOK_TENANT_ID", "").strip()
-        if not client_id or not tenant_id:
-            raise ConfigError(
-                "OUTLOOK_CLIENT_ID und OUTLOOK_TENANT_ID müssen gesetzt sein "
-                f"(Umgebung oder {DEFAULT_ENV_FILE})."
-            )
-        if tenant_id.lower() in ("common", "organizations", "consumers"):
-            raise ConfigError("OUTLOOK_TENANT_ID muss die konkrete Tenant-ID sein, nicht 'common'.")
+        if client_id and client_id != GRAPH_CLI_CLIENT_ID and not tenant_id:
+            raise ConfigError("Bei eigener App (OUTLOOK_CLIENT_ID) muss auch OUTLOOK_TENANT_ID gesetzt sein.")
+        client_id = client_id or GRAPH_CLI_CLIENT_ID
+        # Ohne Tenant: beliebiges Firmenkonto (der Tenant ergibt sich aus der Anmeldung).
+        tenant_id = tenant_id or "organizations"
+        if tenant_id.lower() in ("common", "consumers"):
+            raise ConfigError("OUTLOOK_TENANT_ID muss eine Tenant-ID oder 'organizations' sein.")
 
         mode = env.get("OUTLOOK_MODE", "send").strip().lower()
         if mode not in MODES:

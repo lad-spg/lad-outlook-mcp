@@ -72,4 +72,7 @@ def test_config_load_and_validation(tmp_path):
     with pytest.raises(ConfigError):
         Config.load({**env, "OUTLOOK_MODE": "yolo"})
     with pytest.raises(ConfigError):
-        Config.load({"OUTLOOK_CLIENT_ID": "cid"})
+        Config.load({"OUTLOOK_CLIENT_ID": "cid"})  # eigene App ohne Tenant
+    default = Config.load({})
+    assert default.uses_default_app and default.tenant_id == "organizations"
+    assert Config.load({"OUTLOOK_TENANT_ID": "tid"}).uses_default_app

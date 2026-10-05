@@ -46,8 +46,8 @@ einfach der Reihe nach ab.
 - Es meldet sich **als du** bei Microsoft an. Es sieht also genau das, was du in Outlook
   auch siehst – **nur dein eigenes Postfach**, keine fremden.
 - Es speichert **keine Mails** auf deinem Rechner. Alles wird bei Bedarf frisch abgefragt.
-- Damit Microsoft das Programm kennt, braucht es einmalig eine **„App-Registrierung“**
-  (eine Art Ausweis für das Programm). Darum geht es in Teil A.
+- Zum Anmelden öffnet sich einfach dein **Browser** – wie bei jeder anderen Microsoft-Anmeldung.
+  Eine eigene „App-Registrierung“ bei Microsoft ist **nicht nötig** (kann man aber nutzen, siehe Teil A).
 
 ---
 
@@ -81,55 +81,81 @@ sudo apt install python3 python3-venv git
 
 ## 3. Teil A – Die App-Registrierung bei Microsoft
 
-Es gibt zwei Möglichkeiten. **Bei thelad wird Variante 1 verwendet.**
+**Kurz: Für die meisten ist hier nichts zu tun.** Lies nur weiter, wenn du wissen willst, warum.
 
-### Variante 1: Bestehende App-Registrierung weiterverwenden (bei thelad)
+Damit Microsoft ein Programm ins Postfach lässt, muss das Programm Microsoft „bekannt“ sein
+(eine sogenannte **App-Registrierung**). Es gibt drei Möglichkeiten:
 
-Es gibt bereits eine App-Registrierung (vom früheren `outlook-mcp`). Sie hat:
+| | Variante 0 – **Standard** | Variante 1 – eigene App mit Secret (**thelad**) | Variante 2 – eigene App ohne Secret |
+|---|---|---|---|
+| Aufwand bei Microsoft | **keiner** | einmalig (bereits erledigt) | einmalig ca. 5 Min. |
+| Was steht in `config.env`? | nichts | Client-ID, Tenant-ID, Secret | Client-ID, Tenant-ID |
+| Anmeldung | Browser öffnet sich automatisch | Browser öffnet sich automatisch | Browser öffnet sich automatisch |
+| Im Microsoft-Protokoll sichtbar als | „Microsoft Graph Command Line Tools“ | eure eigene App | eure eigene App |
+| Zentral sperrbar nur für dieses Programm | nein | ja | ja |
 
-- eine **Anwendungs-ID (Client-ID)**,
-- eine **Verzeichnis-ID (Tenant-ID)**,
-- einen **geheimen Clientschlüssel (Client-Secret)**,
-- die Umleitungs-Adresse **`http://localhost:3333/auth/callback`**,
-- die Rechte `Mail.ReadWrite` und `Mail.Send` (delegiert).
+### Variante 0: Ohne eigene Registrierung (Standard)
 
-👉 Du musst im Microsoft-Portal **nichts ändern**. Du brauchst nur die drei Werte
-(Client-ID, Tenant-ID, Secret). Die stehen z. B. in der alten Datei
-`~/Workspaces/outlook-mcp/.env` auf `fm` (dort heißen sie `MS_CLIENT_ID`, `MS_TENANT_ID`,
+Das Programm nutzt die App **„Microsoft Graph Command Line Tools“**. Die stellt Microsoft selbst
+bereit – sie ist in jedem Firmen-Konto schon vorhanden (dieselbe App, die auch Microsoft
+Graph PowerShell verwendet).
+
+👉 **Du musst nichts tun.** In Teil C einfach keine Client-ID eintragen.
+
+Gut zu wissen:
+
+- Beim ersten Anmelden fragt Microsoft: *„Microsoft Graph Command Line Tools möchte … Ihre
+  E-Mails lesen und senden“* → **Akzeptieren**.
+- Erscheint stattdessen **„Administratorgenehmigung erforderlich“**, muss ein Admin einmal
+  für die Firma zustimmen (danach nie wieder).
+- Die Zustimmung gilt für diese Microsoft-App allgemein – also auch für PowerShell-Skripte,
+  die du mit `Connect-MgGraph` startest.
+
+### Variante 1: Bestehende eigene App weiterverwenden (bei thelad)
+
+Bei thelad gibt es bereits eine App-Registrierung (vom früheren `outlook-mcp`) mit
+**Client-ID**, **Tenant-ID**, **Client-Secret**, der Umleitungs-Adresse
+`http://localhost:3333/auth/callback` und den Rechten `Mail.ReadWrite` und `Mail.Send`.
+
+👉 Du brauchst nur die drei Werte. Sie stehen in der alten Datei
+`~/Workspaces/outlook-mcp/.env` auf `fm` (dort `MS_CLIENT_ID`, `MS_TENANT_ID`,
 `MS_CLIENT_SECRET`) – oder du bekommst sie von der IT.
 
-Weiter mit [Teil B](#4-teil-b--programm-installieren).
-
 <details>
-<summary>So prüfst du die bestehende App-Registrierung im Portal (nur falls etwas nicht klappt)</summary>
+<summary>Tipp: Secret loswerden (2 Klicks im Portal, optional)</summary>
 
-1. <https://entra.microsoft.com> öffnen und anmelden.
-2. Links: **Anwendungen → App-Registrierungen → Alle Anwendungen**.
-3. Die App anklicken (die Client-ID steht in der Liste).
-4. **Authentifizierung**: Unter „Web“ muss `http://localhost:3333/auth/callback` stehen.
-5. **API-Berechtigungen**: Unter „Microsoft Graph“ müssen `Mail.ReadWrite`, `Mail.Send`
-   und `User.Read` vom Typ **Delegiert** stehen, mit grünem Haken bei „Status“.
-6. **Zertifikate & Geheimnisse**: Das Secret darf nicht abgelaufen sein (Spalte „Läuft ab“).
+Ohne Secret ist es sicherer und einfacher (keine geheime Zeichenkette auf jedem Rechner):
+
+1. <https://entra.microsoft.com> → **Anwendungen → App-Registrierungen** → eure App öffnen.
+2. **Authentifizierung → Plattform hinzufügen → Mobile Anwendungen und Desktopanwendungen**
+   → bei „Benutzerdefinierte Umleitungs-URIs“ `http://localhost` eintragen → **Konfigurieren**.
+3. Ganz unten **„Öffentliche Clientflows zulassen“** auf **Ja** → **Speichern**.
+4. In `config.env` die Zeilen `OUTLOOK_CLIENT_SECRET` und `OUTLOOK_REDIRECT_URI` löschen,
+   dann neu `login`.
 
 </details>
 
-### Variante 2: Neue App-Registrierung anlegen (ohne Secret)
+<details>
+<summary>Bestehende App im Portal prüfen (nur falls etwas nicht klappt)</summary>
 
-Nur nötig, wenn es noch keine App gibt. Dauert ca. 5 Minuten. Je nach Firmeneinstellung
-brauchst du dafür einen Administrator.
+1. <https://entra.microsoft.com> → **Anwendungen → App-Registrierungen → Alle Anwendungen** → App öffnen.
+2. **Authentifizierung**: Unter „Web“ muss `http://localhost:3333/auth/callback` stehen.
+3. **API-Berechtigungen**: `Mail.ReadWrite`, `Mail.Send`, `User.Read` vom Typ **Delegiert**, grüner Haken.
+4. **Zertifikate & Geheimnisse**: Das Secret darf nicht abgelaufen sein.
 
-1. <https://entra.microsoft.com> öffnen → **Anwendungen → App-Registrierungen → Neue Registrierung**.
-2. **Name:** `lad-outlook-mcp`
-3. **Unterstützte Kontotypen:** „Nur Konten in diesem Organisationsverzeichnis“.
-4. **Umleitungs-URI:** leer lassen → **Registrieren** klicken.
-5. Auf der Übersichtsseite **abschreiben**:
-   - „Anwendungs-ID (Client)“ → das ist deine **Client-ID**
-   - „Verzeichnis-ID (Mandant)“ → das ist deine **Tenant-ID**
-6. Links **Authentifizierung** → ganz unten **„Öffentliche Clientflows zulassen“** auf **Ja** → **Speichern**.
-7. Links **API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen**.
-   Suchen und anhaken: `Mail.ReadWrite`, `Mail.Send` (und `User.Read`, falls nicht schon da)
-   → **Berechtigungen hinzufügen**.
-8. Falls ein Hinweis kommt: **„Administratorzustimmung erteilen“** klicken (oder Admin fragen).
+</details>
+
+### Variante 2: Neue eigene App anlegen (ohne Secret)
+
+Nur, wenn ihr das Programm im Microsoft-Protokoll klar erkennen und gezielt sperren können wollt.
+
+1. <https://entra.microsoft.com> → **Anwendungen → App-Registrierungen → Neue Registrierung**.
+2. **Name:** `lad-outlook-mcp` · **Kontotypen:** „Nur Konten in diesem Organisationsverzeichnis“.
+3. **Umleitungs-URI:** Plattform **„Öffentlicher Client/nativ (mobil und Desktop)“**, Adresse `http://localhost` → **Registrieren**.
+4. Übersichtsseite: **Anwendungs-ID (Client)** und **Verzeichnis-ID (Mandant)** abschreiben.
+5. **Authentifizierung** → **„Öffentliche Clientflows zulassen“** = **Ja** → **Speichern**.
+6. **API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen**:
+   `Mail.ReadWrite`, `Mail.Send` (und `User.Read`) → hinzufügen; ggf. **Administratorzustimmung erteilen**.
 
 > ⚠️ Bitte **keine** „Anwendungsberechtigungen“ vergeben – die würden Zugriff auf **alle**
 > Postfächer der Firma geben. Dieses Programm braucht nur „Delegiert“.
@@ -199,22 +225,27 @@ mkdir -p ~/.config/lad-outlook-mcp && cp ~/workspaces/lad-outlook-mcp/config.env
 nano ~/.config/lad-outlook-mcp/config.env
 ```
 
-Trage deine Werte ein. So sieht das bei **Variante 1 (bestehende App, thelad)** aus:
+**Variante 0 (Standard, ohne eigene App):** Die Zeilen mit `CLIENT_ID`, `TENANT_ID`,
+`CLIENT_SECRET` und `REDIRECT_URI` bleiben **leer bzw. auskommentiert** (mit `#` davor).
+Du musst nur die Empfänger-Regeln prüfen:
 
 ```ini
-OUTLOOK_CLIENT_ID=d6ba....-....-....-....-............
-OUTLOOK_TENANT_ID=78e1....-....-....-....-............
-OUTLOOK_CLIENT_SECRET=hier-das-geheime-secret
-OUTLOOK_REDIRECT_URI=http://localhost:3333/auth/callback
-
 OUTLOOK_MODE=send
 OUTLOOK_ALLOWED_RECIPIENT_DOMAINS=dension-dental.de
 OUTLOOK_ALLOWED_RECIPIENTS=
 OUTLOOK_CONFIRM_SEND=auto
 ```
 
-Bei **Variante 2 (neue App ohne Secret)** die Zeilen `OUTLOOK_CLIENT_SECRET` und
-`OUTLOOK_REDIRECT_URI` einfach weglassen.
+**Variante 1 (bestehende App, thelad):** zusätzlich diese vier Zeilen ausfüllen (ohne `#`):
+
+```ini
+OUTLOOK_CLIENT_ID=d6ba....-....-....-....-............
+OUTLOOK_TENANT_ID=78e1....-....-....-....-............
+OUTLOOK_CLIENT_SECRET=hier-das-geheime-secret
+OUTLOOK_REDIRECT_URI=http://localhost:3333/auth/callback
+```
+
+**Variante 2 (eigene App ohne Secret):** nur `OUTLOOK_CLIENT_ID` und `OUTLOOK_TENANT_ID` ausfüllen.
 
 Speichern in nano: **Strg+O**, **Enter**, dann beenden mit **Strg+X**.
 
@@ -222,8 +253,8 @@ Speichern in nano: **Strg+O**, **Enter**, dann beenden mit **Strg+X**.
 
 | Zeile | Bedeutung | Empfehlung |
 |---|---|---|
-| `OUTLOOK_CLIENT_ID` | Anwendungs-ID aus Teil A | – |
-| `OUTLOOK_TENANT_ID` | Verzeichnis-ID aus Teil A | – |
+| `OUTLOOK_CLIENT_ID` | Anwendungs-ID (nur Variante 1/2) | leer lassen = Standard |
+| `OUTLOOK_TENANT_ID` | Verzeichnis-ID (nur Variante 1/2) | leer lassen = Standard |
 | `OUTLOOK_CLIENT_SECRET` | Geheimer Schlüssel (nur Variante 1) | – |
 | `OUTLOOK_MODE` | Was darf die KI? `readonly` = nur lesen · `draft` = lesen + Entwürfe · `send` = auch senden | `send` |
 | `OUTLOOK_ALLOWED_RECIPIENT_DOMAINS` | An welche Firmen-Domains darf gesendet werden? Mehrere mit Komma trennen. | `dension-dental.de` |
@@ -245,7 +276,8 @@ Speichern in nano: **Strg+O**, **Enter**, dann beenden mit **Strg+X**.
 Modus:          send  (Rechte: User.Read, Mail.ReadWrite, Mail.Send)
 Empfänger:      dension-dental.de
 Bestätigung:    auto
-Anmeldeart:     Browser (App mit Client-Secret)
+App:            Microsoft Graph Command Line Tools (Standard, keine Registrierung)
+Anmeldeart:     Browser bzw. Code (ohne Secret)
 Daten-Ordner:   /home/<du>/.local/share/lad-outlook-mcp
 Anmeldung:      nicht angemeldet
 ```
@@ -257,46 +289,48 @@ Anmeldung:      nicht angemeldet
 Das musst du **einmal pro Rechner** machen. Danach bleibt die Anmeldung gespeichert und
 erneuert sich selbst (in der Regel für viele Wochen).
 
-### Fall 1: Du sitzt direkt an dem Rechner (mit Browser) – der Normalfall
+### Fall 1: Du sitzt direkt an dem Rechner – der Normalfall
 
 ```bash
 ~/workspaces/lad-outlook-mcp/.venv/bin/lad-outlook-mcp login
 ```
 
-1. Im Terminal erscheint eine lange Adresse, die mit `https://login.microsoftonline.com/…` beginnt.
-2. Diese Adresse **kopieren** (markieren, Strg+Umschalt+C) und im **Browser öffnen**.
-3. Mit deinem **Firmenkonto** anmelden (wie bei Outlook im Web).
-4. Fragt Microsoft nach Zustimmung zu Berechtigungen → **Akzeptieren**.
-5. Im Browser steht: **„Anmeldung abgeschlossen.“** – Fenster schließen.
-6. Im Terminal steht: `Angemeldet als vorname.nachname@firma.de (Modus: send).` ✅
+1. **Der Browser öffnet sich von selbst** mit der Microsoft-Anmeldung.
+2. Mit deinem **Firmenkonto** anmelden (wie bei Outlook im Web).
+3. Beim ersten Mal fragt Microsoft nach Zustimmung zu Berechtigungen → **Akzeptieren**.
+4. Im Browser steht: **„Anmeldung abgeschlossen.“** – Fenster schließen.
+5. Im Terminal steht: `Angemeldet als vorname.nachname@firma.de (Modus: send).` ✅
 
-Bei Variante 2 (ohne Secret) sieht es etwas anders aus: Das Terminal zeigt einen kurzen
-**Code** und die Adresse `https://microsoft.com/devicelogin`. Adresse öffnen, Code eingeben,
-anmelden – fertig.
+> Öffnet sich kein Browser? Dann zeigt das Terminal eine Adresse (oder einen Code) an –
+> einfach selbst im Browser öffnen.
 
-### Fall 2: Das Programm läuft auf einem Server ohne Browser (z. B. `fm`)
+### Fall 2: Auf einem Server ohne Bildschirm (z. B. `fm`, per SSH)
 
-Der Browser auf deinem Arbeitsplatz muss die Antwort von Microsoft an den Server
-weitergeben. Das geht über einen **SSH-Tunnel**.
+**Variante 0 und 2 (ohne Secret)** – ganz einfach mit Code:
 
-**Auf deinem Arbeitsplatz-Rechner** ein Terminal öffnen und eingeben (`fm` durch deinen Server ersetzen):
+```bash
+~/workspaces/lad-outlook-mcp/.venv/bin/lad-outlook-mcp login --device-code
+```
+
+1. Das Terminal zeigt: *„… öffne https://microsoft.com/devicelogin und gib den Code ABCD1234 ein“*.
+2. Diese Adresse auf **irgendeinem** Gerät öffnen (PC, Handy), Code eingeben, anmelden.
+3. Im Terminal erscheint `Angemeldet als …` ✅
+
+**Variante 1 (mit Secret)** – über einen **SSH-Tunnel**. Auf deinem Arbeitsplatz-Rechner:
 
 ```bash
 ssh -L 3333:127.0.0.1:3333 fm
 ```
 
-**In diesem Terminal (du bist jetzt auf dem Server):**
+Dann in diesem Terminal (du bist jetzt auf dem Server):
 
 ```bash
 ~/workspaces/lad-outlook-mcp/.venv/bin/lad-outlook-mcp login
 ```
 
-Dann weiter wie in Fall 1, Schritt 1–6: Adresse im Browser **auf deinem Arbeitsplatz** öffnen,
-anmelden – fertig. Danach kannst du das Terminal mit `exit` schließen.
-
-**Kein Tunnel möglich?** Auch kein Problem: Nach der Anmeldung zeigt der Browser
-„Seite nicht erreichbar“. Dann die **komplette Adresse aus der Adresszeile** kopieren
-(beginnt mit `http://localhost:3333/auth/callback?code=…`), im Terminal einfügen und **Enter** drücken.
+Die angezeigte Adresse im Browser **auf deinem Arbeitsplatz** öffnen und anmelden. Danach
+`exit`. Kein Tunnel möglich? Nach der Anmeldung zeigt der Browser „Seite nicht erreichbar“ –
+dann die **komplette Adresse aus der Adresszeile** kopieren, im Terminal einfügen, **Enter**.
 
 ### Prüfen
 
@@ -419,12 +453,14 @@ Weitere Schutzmaßnahmen:
 
 | Meldung / Problem | Ursache | Lösung |
 |---|---|---|
-| `OUTLOOK_CLIENT_ID und OUTLOOK_TENANT_ID müssen gesetzt sein` | Einstellungsdatei fehlt oder ist leer | [Teil C](#5-teil-c--einstellungen-eintragen) wiederholen |
+| `Bei eigener App … muss auch OUTLOOK_TENANT_ID gesetzt sein` | Client-ID ohne Tenant-ID eingetragen | Tenant-ID ergänzen – oder beide Zeilen leeren (Standard) |
+| Browser: „Administratorgenehmigung erforderlich“ (Variante 0) | Firma erlaubt Nutzern keine eigene Zustimmung | Admin bitten, „Microsoft Graph Command Line Tools“ die Rechte `Mail.ReadWrite`/`Mail.Send` zu genehmigen – oder Variante 1/2 nutzen |
 | `Anmeldedienst nicht erreichbar oder Tenant-ID falsch` | Tippfehler in der Tenant-ID oder kein Internet | Tenant-ID prüfen, Internet prüfen |
 | `Nicht angemeldet` / `Anmeldung abgelaufen` | Noch nie angemeldet oder lange nicht benutzt | `lad-outlook-mcp login` ([Teil D](#6-teil-d--bei-microsoft-anmelden)) |
 | Browser: `AADSTS50011 … redirect URI … does not match` | Umleitungs-Adresse passt nicht zur App | `OUTLOOK_REDIRECT_URI` muss exakt so lauten wie im Portal (Variante 1: `http://localhost:3333/auth/callback`) |
 | `AADSTS7000215 … Invalid client secret` | Secret falsch oder abgelaufen | Neues Secret im Portal anlegen („Zertifikate & Geheimnisse“) und in `config.env` eintragen |
-| `AADSTS7000218 … client_assertion or client_secret` | Variante 2 ohne „Öffentliche Clientflows“ | Im Portal „Öffentliche Clientflows zulassen“ = Ja ([Teil A](#variante-2-neue-app-registrierung-anlegen-ohne-secret)) |
+| `AADSTS7000218 … client_assertion or client_secret` | Eigene App ohne „Öffentliche Clientflows“ | Im Portal „Öffentliche Clientflows zulassen“ = Ja ([Teil A](#variante-2-neue-eigene-app-anlegen-ohne-secret)) |
+| Browser bleibt bei `localhost` hängen / kein Browser öffnet sich | Kein Bildschirm (SSH) | `lad-outlook-mcp login --device-code` |
 | Browser: „Administratorgenehmigung erforderlich“ | Firma erlaubt keine eigene Zustimmung | Admin bitten, die Zustimmung zu erteilen |
 | `Port 3333 ist belegt` | Ein anderes Programm nutzt den Port | Adresse aus dem Browser einfügen (siehe Teil D) oder das andere Programm beenden |
 | `Graph-Fehler 403 … fehlende Berechtigung` | Rechte fehlen oder Modus passt nicht | API-Berechtigungen prüfen; nach Änderung von `OUTLOOK_MODE` neu `login` |
@@ -477,9 +513,9 @@ Alle Werte stehen in `~/.config/lad-outlook-mcp/config.env` (oder als Umgebungsv
 
 | Einstellung | Standard | Bedeutung |
 |---|---|---|
-| `OUTLOOK_CLIENT_ID` | – (Pflicht) | Anwendungs-ID der App-Registrierung |
-| `OUTLOOK_TENANT_ID` | – (Pflicht) | Verzeichnis-ID (nicht `common`) |
-| `OUTLOOK_CLIENT_SECRET` | leer | Secret der App. Gesetzt → Anmeldung per Browser; leer → per Code (Device-Code) |
+| `OUTLOOK_CLIENT_ID` | Microsoft Graph Command Line Tools | Anwendungs-ID einer eigenen App (leer = Standard, keine Registrierung) |
+| `OUTLOOK_TENANT_ID` | `organizations` | Verzeichnis-ID; bei eigener App Pflicht |
+| `OUTLOOK_CLIENT_SECRET` | leer | Secret einer eigenen Web-App (Variante 1) |
 | `OUTLOOK_REDIRECT_URI` | `http://localhost:3333/auth/callback` | Muss zur App-Registrierung passen (nur mit Secret) |
 | `OUTLOOK_MODE` | `send` | `readonly`, `draft` oder `send` |
 | `OUTLOOK_ALLOWED_RECIPIENT_DOMAINS` | leer | Erlaubte Empfänger-Domains (Komma-getrennt) |
@@ -544,11 +580,11 @@ per InputRequired-Runde) genau einmal gefragt und genau einmal gesendet wird.
 |---|---|
 | `src/lad_outlook_mcp/server.py` | MCP-Werkzeuge |
 | `src/lad_outlook_mcp/graph.py` | Microsoft-Graph-Client (nur `/me`) |
-| `src/lad_outlook_mcp/auth.py` | Anmeldung (Device-Code oder Browser mit PKCE) |
+| `src/lad_outlook_mcp/auth.py` | Anmeldung (Browser mit PKCE, Device-Code, optional Client-Secret) |
 | `src/lad_outlook_mcp/policy.py` | Empfänger-Regeln, sichere Pfade, Suchausdrücke |
 | `src/lad_outlook_mcp/extract.py` | Text aus PDF/Word/Excel/HTML |
 | `src/lad_outlook_mcp/config.py` | Einstellungen |
-| `src/lad_outlook_mcp/cli.py` | Befehle `serve`, `login`, `status`, `logout` |
+| `src/lad_outlook_mcp/cli.py` | Befehle `serve`, `login [--device-code]`, `status`, `logout` |
 
 Technik: Python ≥ 3.11, MCP-SDK 2.3 (`MCPServer`, Bestätigung über `Resolve`/`Elicit`),
 MSAL, httpx. Alle Abhängigkeiten exakt gepinnt in `pyproject.toml`.

@@ -1,9 +1,11 @@
 """Delegierte Anmeldung (immer als der Nutzer selbst, nur /me).
 
-Zwei Wege:
-- ohne Client-Secret: Device-Code-Flow (App braucht "Öffentliche Clientflows zulassen").
+Wege:
+- ohne Client-Secret (Standard-App von Microsoft oder eigene Public-Client-App):
+  Browser öffnet sich automatisch (Authorization-Code + PKCE, Redirect auf http://localhost);
+  ohne Bildschirm (Server/SSH) bzw. mit --device-code per Device-Code.
 - mit Client-Secret (bestehende Web-App-Registrierung): Browser-Anmeldung per
-  Authorization-Code-Flow mit PKCE und Redirect auf http://localhost:<port>/...
+  Authorization-Code-Flow mit PKCE und Redirect auf OUTLOOK_REDIRECT_URI.
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ import select
 import sys
 import threading
 import warnings
+import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 from pathlib import Path
@@ -24,6 +27,16 @@ from .config import Config
 
 class NotLoggedIn(Exception):
     pass
+
+
+def has_display() -> bool:
+    """Kann hier ein Browser geöffnet werden?"""
+    if sys.platform in ("darwin", "win32"):
+        return True
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+SUCCESS_PAGE = "<h2>Anmeldung abgeschlossen.</h2><p>Du kannst dieses Fenster schließen.</p>"
 
 
 class Auth:
@@ -91,9 +104,12 @@ class Auth:
                 )
             return result["access_token"]
 
-    def login(self, print_fn=print) -> dict:
+    def login(self, print_fn=print, device_code: bool = False) -> dict:
+        browser = has_display() and not device_code
         if self._config.client_secret:
-            result = self._login_browser(print_fn)
+            result = self._login_browser(print_fn, open_browser=browser)
+        elif browser:
+            result = self._login_interactive(print_fn)
         else:
             result = self._login_device_code(print_fn)
         if "access_token" not in result:
@@ -104,6 +120,19 @@ class Auth:
             self._save_cache()
         return result.get("id_token_claims", {})
 
+    def _login_interactive(self, print_fn) -> dict:
+        print_fn("Der Browser öffnet sich – bitte mit dem Firmenkonto anmelden ...")
+        try:
+            return self._app.acquire_token_interactive(
+                self._config.scopes,
+                prompt="select_account",
+                timeout=600,
+                success_template=SUCCESS_PAGE,
+            )
+        except Exception as e:  # z. B. kein Browser startbar → Fallback
+            print_fn(f"(Browser ließ sich nicht öffnen: {e} – weiter mit Code-Anmeldung.)")
+            return self._login_device_code(print_fn)
+
     def _login_device_code(self, print_fn) -> dict:
         flow = self._app.initiate_device_flow(scopes=self._config.scopes)
         if "user_code" not in flow:
@@ -111,7 +140,7 @@ class Auth:
         print_fn(flow["message"])
         return self._app.acquire_token_by_device_flow(flow)
 
-    def _login_browser(self, print_fn, timeout: int = 1800) -> dict:
+    def _login_browser(self, print_fn, timeout: int = 1800, open_browser: bool = False) -> dict:
         redirect = urlparse(self._config.redirect_uri)
         if redirect.hostname not in ("localhost", "127.0.0.1"):
             raise RuntimeError("OUTLOOK_REDIRECT_URI muss auf localhost zeigen.")
@@ -132,9 +161,7 @@ class Auth:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.end_headers()
-                self.wfile.write(
-                    "<h2>Anmeldung abgeschlossen.</h2><p>Du kannst dieses Fenster schließen.</p>".encode()
-                )
+                self.wfile.write(SUCCESS_PAGE.encode())
 
             def log_message(self, *args):
                 pass
@@ -153,6 +180,9 @@ class Auth:
             "   Zeigt der Browser stattdessen 'Seite nicht erreichbar', die komplette Adresse\n"
             "   aus der Adresszeile kopieren, hier einfügen und Enter drücken.\n"
         )
+        if open_browser and server is not None:
+            webbrowser.open(flow["auth_uri"])
+            print_fn("(Der Browser wurde geöffnet.)")
         print_fn("Warte auf Anmeldung ...")
         stdin_ok = sys.stdin is not None and sys.stdin.isatty()
         try:

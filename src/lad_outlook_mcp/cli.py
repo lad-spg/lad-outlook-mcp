@@ -22,6 +22,10 @@ def main(argv: list[str] | None = None) -> int:
         "command", nargs="?", default="serve", choices=["serve", "login", "status", "logout"],
         help="serve (Standard, stdio-MCP-Server), login (Device-Code-Anmeldung), status, logout",
     )
+    parser.add_argument(
+        "--device-code", action="store_true",
+        help="login: Anmeldung per Code statt Browser (für Server ohne Bildschirm)",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -32,7 +36,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "login":
         try:
-            claims = auth.login(print_fn=lambda *a, **k: print(*a, **k, flush=True))
+            claims = auth.login(
+                print_fn=lambda *a, **k: print(*a, **k, flush=True), device_code=args.device_code
+            )
         except (RuntimeError, NotLoggedIn) as e:
             return _err(str(e))
         print(f"Angemeldet als {claims.get('preferred_username', '?')} (Modus: {config.mode}).")
@@ -50,7 +56,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Modus:          {config.mode}  (Rechte: {', '.join(config.scopes)})")
         print(f"Empfänger:      {', '.join(sorted(config.allowed_domains | config.allowed_recipients)) or 'alle erlaubt'}")
         print(f"Bestätigung:    {config.confirm_send}")
-        print(f"Anmeldeart:     {'Browser (App mit Client-Secret)' if config.client_secret else 'Device-Code'}")
+        app = "Microsoft Graph Command Line Tools (Standard, keine Registrierung)" if config.uses_default_app else f"eigene App {config.client_id}"
+        print(f"App:            {app}")
+        print(f"Anmeldeart:     {'Browser (App mit Client-Secret)' if config.client_secret else 'Browser bzw. Code (ohne Secret)'}")
         print(f"Daten-Ordner:   {config.data_dir}")
         try:
             account = auth.account()
