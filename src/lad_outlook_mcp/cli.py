@@ -73,6 +73,12 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     # serve
+    import logging
+
+    # httpx loggt sonst jede URL (inkl. Suchbegriffe/Mail-IDs) in die Client-Logs.
+    for name in ("httpx", "httpcore", "msal"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
     from .graph import Graph
     from .server import build_server
 
