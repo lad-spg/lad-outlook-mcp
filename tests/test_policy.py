@@ -64,8 +64,9 @@ def test_config_load_and_validation(tmp_path):
     env = {"OUTLOOK_CLIENT_ID": "cid", "OUTLOOK_TENANT_ID": "tid", "OUTLOOK_ALLOWED_RECIPIENT_DOMAINS": "A.de, b.de",
            "OUTLOOK_DATA_DIR": str(tmp_path)}
     cfg = Config.load(env)
-    assert cfg.mode == "send" and cfg.allowed_domains == {"a.de", "b.de"}
-    assert "Mail.Send" in cfg.scopes
+    assert cfg.mode == "draft" and cfg.allowed_domains == {"a.de", "b.de"}
+    assert "Mail.Send" not in cfg.scopes
+    assert "Mail.Send" in Config.load({**env, "OUTLOOK_MODE": "send"}).scopes
     assert Config.load({**env, "OUTLOOK_MODE": "readonly"}).scopes == ["User.Read", "Mail.Read"]
     with pytest.raises(ConfigError):
         Config.load({**env, "OUTLOOK_TENANT_ID": "common"})
@@ -76,3 +77,15 @@ def test_config_load_and_validation(tmp_path):
     default = Config.load({})
     assert default.uses_default_app and default.tenant_id == "organizations"
     assert Config.load({"OUTLOOK_TENANT_ID": "tid"}).uses_default_app
+
+
+def test_send_requires_own_app():
+    assert Config.load({}).mode == "draft"
+    assert Config.load({"OUTLOOK_MODE": ""}).mode == "draft"
+    assert Config.load({"OUTLOOK_MODE": "readonly"}).mode == "readonly"
+    with pytest.raises(ConfigError, match="eigener App-Registrierung"):
+        Config.load({"OUTLOOK_MODE": "send"})
+    with pytest.raises(ConfigError, match="eigener App-Registrierung"):
+        Config.load({"OUTLOOK_MODE": "SEND", "OUTLOOK_TENANT_ID": "tid"})
+    own = Config.load({"OUTLOOK_MODE": "send", "OUTLOOK_CLIENT_ID": "cid", "OUTLOOK_TENANT_ID": "tid"})
+    assert own.mode == "send" and "Mail.Send" in own.scopes

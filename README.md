@@ -9,6 +9,7 @@ Outlook-Postfach (Microsoft 365):
 - 📎 **Anhänge lesen** (PDF, Word, Excel, Text) oder speichern
 - ✍️ **Entwürfe schreiben** – neue Mails, Antworten, Weiterleitungen, auch mit Anhängen
 - 📤 Mails **senden** – aber nur, wenn du es bestätigst und der Empfänger erlaubt ist
+  (optional, nur mit eigener App-Registrierung – siehe Teil A)
 
 Dieses Dokument erklärt alles von Anfang an. Du musst kein Profi sein. Arbeite die Teile
 einfach der Reihe nach ab.
@@ -55,7 +56,7 @@ einfach der Reihe nach ab.
 
 | Was | Woran erkenne ich, dass es da ist? |
 |---|---|
-| Einen Linux-Rechner (z. B. Arch, Debian, Ubuntu) | – |
+| Einen Linux-Rechner (z. B. Arch, Debian, Ubuntu) oder Windows 10/11 | – |
 | Python 3.11 oder neuer | Im Terminal `python3 --version` eingeben → zeigt `Python 3.11…` oder höher |
 | Git | `git --version` zeigt eine Versionsnummer |
 | Ein Microsoft-365-Firmenkonto mit Postfach | Du kannst dich bei <https://outlook.office.com> anmelden |
@@ -77,6 +78,15 @@ sudo pacman -S python git
 sudo apt install python3 python3-venv git
 ```
 
+```powershell
+# Windows (PowerShell, ohne Admin-Rechte; danach Terminal neu öffnen)
+winget install --id Python.Python.3.12 -e --scope user
+winget install --id Git.Git -e
+```
+
+> 💡 Unter Windows heißt der Befehl `python` statt `python3`. Öffnet `python` den Microsoft
+> Store, ist nur der Platzhalter da – dann Python wie oben installieren.
+
 ---
 
 ## 3. Teil A – Die App-Registrierung bei Microsoft
@@ -93,6 +103,13 @@ Damit Microsoft ein Programm ins Postfach lässt, muss das Programm Microsoft �
 | Anmeldung | Browser öffnet sich automatisch | Browser öffnet sich automatisch | Browser öffnet sich automatisch |
 | Im Microsoft-Protokoll sichtbar als | „Microsoft Graph Command Line Tools“ | eure eigene App | eure eigene App |
 | Zentral sperrbar nur für dieses Programm | nein | ja | ja |
+| Möglicher Modus | `readonly`, `draft` | alle, auch `send` | alle, auch `send` |
+
+> 🔒 **Senden (`OUTLOOK_MODE=send`) geht nur mit eigener App-Registrierung (Variante 1/2).**
+> Grund: Die Admin-Zustimmung für `Mail.Send` soll gezielt für *dieses* Programm erteilt und
+> bei Bedarf wieder entzogen werden können – nicht pauschal für die allgemeine Microsoft-App,
+> die auch Graph PowerShell nutzt. Mit Variante 0 bricht das Programm bei `send` mit einem
+> Hinweis ab.
 
 ### Variante 0: Ohne eigene Registrierung (Standard)
 
@@ -105,9 +122,13 @@ Graph PowerShell verwendet).
 Gut zu wissen:
 
 - Beim ersten Anmelden fragt Microsoft: *„Microsoft Graph Command Line Tools möchte … Ihre
-  E-Mails lesen und senden“* → **Akzeptieren**.
+  E-Mails lesen und schreiben“* → **Akzeptieren**.
 - Erscheint stattdessen **„Administratorgenehmigung erforderlich“**, muss ein Admin einmal
-  für die Firma zustimmen (danach nie wieder).
+  für die Firma zustimmen (danach nie wieder). Im Dialog kann man direkt „Genehmigung
+  anfordern“ und eine Begründung angeben, z. B.: *„Lokales Tool, das Entwürfe in meinem
+  eigenen Postfach anlegt. Nur delegierte Rechte (User.Read, Mail.ReadWrite), kein Senden.“*
+- Mit Variante 0 sind nur die Modi `readonly` und `draft` möglich – gesendet wird dann selbst
+  in Outlook.
 - Die Zustimmung gilt für diese Microsoft-App allgemein – also auch für PowerShell-Skripte,
   die du mit `Connect-MgGraph` startest.
 
@@ -155,7 +176,8 @@ Nur, wenn ihr das Programm im Microsoft-Protokoll klar erkennen und gezielt sper
 4. Übersichtsseite: **Anwendungs-ID (Client)** und **Verzeichnis-ID (Mandant)** abschreiben.
 5. **Authentifizierung** → **„Öffentliche Clientflows zulassen“** = **Ja** → **Speichern**.
 6. **API-Berechtigungen → Berechtigung hinzufügen → Microsoft Graph → Delegierte Berechtigungen**:
-   `Mail.ReadWrite`, `Mail.Send` (und `User.Read`) → hinzufügen; ggf. **Administratorzustimmung erteilen**.
+   `Mail.ReadWrite` und `User.Read` – für den Modus `send` zusätzlich `Mail.Send` → hinzufügen;
+   ggf. **Administratorzustimmung erteilen**.
 
 > ⚠️ Bitte **keine** „Anwendungsberechtigungen“ vergeben – die würden Zugriff auf **alle**
 > Postfächer der Firma geben. Dieses Programm braucht nur „Delegiert“.
@@ -207,6 +229,35 @@ dein restliches System bleibt unberührt.)
 
 ✅ Ausgabe: `0.1.0`
 
+<details>
+<summary><b>Windows:</b> dieselben Schritte in PowerShell</summary>
+
+Auf Windows liegen die Programme in `.venv\Scripts\` statt `.venv/bin/`. `~` ist dein
+Benutzerordner (`C:\Users\<du>`).
+
+```powershell
+mkdir -Force ~\workspaces; cd ~\workspaces
+git clone https://github.com/thelad-dev/lad-outlook-mcp.git
+cd lad-outlook-mcp; python -m venv .venv
+.venv\Scripts\pip install -e .
+.venv\Scripts\lad-outlook-mcp --version
+```
+
+Die Einstellungsdatei (Teil C) liegt unter `~\.config\lad-outlook-mcp\config.env`:
+
+```powershell
+mkdir -Force ~\.config\lad-outlook-mcp
+copy config.env.example ~\.config\lad-outlook-mcp\config.env
+notepad ~\.config\lad-outlook-mcp\config.env
+```
+
+Statt `chmod 600`: Die Datei liegt in deinem Benutzerordner und ist damit für andere
+normale Benutzer nicht lesbar. Bei allen späteren Befehlen in dieser Anleitung
+`~/workspaces/lad-outlook-mcp/.venv/bin/lad-outlook-mcp` durch
+`~\workspaces\lad-outlook-mcp\.venv\Scripts\lad-outlook-mcp` ersetzen.
+
+</details>
+
 ---
 
 ## 5. Teil C – Einstellungen eintragen
@@ -227,25 +278,28 @@ nano ~/.config/lad-outlook-mcp/config.env
 
 **Variante 0 (Standard, ohne eigene App):** Die Zeilen mit `CLIENT_ID`, `TENANT_ID`,
 `CLIENT_SECRET` und `REDIRECT_URI` bleiben **leer bzw. auskommentiert** (mit `#` davor).
-Du musst nur die Empfänger-Regeln prüfen:
+Der Modus bleibt `draft` (Senden geht ohne eigene App nicht, siehe Teil A):
 
 ```ini
-OUTLOOK_MODE=send
-OUTLOOK_ALLOWED_RECIPIENT_DOMAINS=dension-dental.de
-OUTLOOK_ALLOWED_RECIPIENTS=
-OUTLOOK_CONFIRM_SEND=auto
+OUTLOOK_MODE=draft
 ```
 
-**Variante 1 (bestehende App, thelad):** zusätzlich diese vier Zeilen ausfüllen (ohne `#`):
+**Variante 1 (bestehende App, thelad):** zusätzlich diese vier Zeilen ausfüllen (ohne `#`)
+und – wenn gesendet werden soll – den Modus auf `send` stellen und die Empfänger-Regeln prüfen:
 
 ```ini
 OUTLOOK_CLIENT_ID=d6ba....-....-....-....-............
 OUTLOOK_TENANT_ID=78e1....-....-....-....-............
 OUTLOOK_CLIENT_SECRET=hier-das-geheime-secret
 OUTLOOK_REDIRECT_URI=http://localhost:3333/auth/callback
+OUTLOOK_MODE=send
+OUTLOOK_ALLOWED_RECIPIENT_DOMAINS=dension-dental.de
+OUTLOOK_ALLOWED_RECIPIENTS=
+OUTLOOK_CONFIRM_SEND=auto
 ```
 
-**Variante 2 (eigene App ohne Secret):** nur `OUTLOOK_CLIENT_ID` und `OUTLOOK_TENANT_ID` ausfüllen.
+**Variante 2 (eigene App ohne Secret):** nur `OUTLOOK_CLIENT_ID` und `OUTLOOK_TENANT_ID`
+ausfüllen; für Senden wie bei Variante 1 `OUTLOOK_MODE=send` und die Empfänger-Regeln setzen.
 
 Speichern in nano: **Strg+O**, **Enter**, dann beenden mit **Strg+X**.
 
@@ -256,7 +310,7 @@ Speichern in nano: **Strg+O**, **Enter**, dann beenden mit **Strg+X**.
 | `OUTLOOK_CLIENT_ID` | Anwendungs-ID (nur Variante 1/2) | leer lassen = Standard |
 | `OUTLOOK_TENANT_ID` | Verzeichnis-ID (nur Variante 1/2) | leer lassen = Standard |
 | `OUTLOOK_CLIENT_SECRET` | Geheimer Schlüssel (nur Variante 1) | – |
-| `OUTLOOK_MODE` | Was darf die KI? `readonly` = nur lesen · `draft` = lesen + Entwürfe · `send` = auch senden | `send` |
+| `OUTLOOK_MODE` | Was darf die KI? `readonly` = nur lesen · `draft` = lesen + Entwürfe · `send` = auch senden (nur mit eigener App) | `draft`, mit eigener App `send` |
 | `OUTLOOK_ALLOWED_RECIPIENT_DOMAINS` | An welche Firmen-Domains darf gesendet werden? Mehrere mit Komma trennen. | `dension-dental.de` |
 | `OUTLOOK_ALLOWED_RECIPIENTS` | Zusätzlich erlaubte Einzeladressen, z. B. Steuerberater | nach Bedarf |
 | `OUTLOOK_CONFIRM_SEND` | Vor dem Senden nachfragen? (`auto` = ja, wenn das KI-Programm das kann) | `auto` |
@@ -273,7 +327,7 @@ Speichern in nano: **Strg+O**, **Enter**, dann beenden mit **Strg+X**.
 ✅ Das solltest du sehen (die letzte Zeile ist an dieser Stelle normal):
 
 ```
-Modus:          send  (Rechte: User.Read, Mail.ReadWrite, Mail.Send)
+Modus:          draft  (Rechte: User.Read, Mail.ReadWrite)
 Empfänger:      dension-dental.de
 Bestätigung:    auto
 App:            Microsoft Graph Command Line Tools (Standard, keine Registrierung)
@@ -299,7 +353,7 @@ erneuert sich selbst (in der Regel für viele Wochen).
 2. Mit deinem **Firmenkonto** anmelden (wie bei Outlook im Web).
 3. Beim ersten Mal fragt Microsoft nach Zustimmung zu Berechtigungen → **Akzeptieren**.
 4. Im Browser steht: **„Anmeldung abgeschlossen.“** – Fenster schließen.
-5. Im Terminal steht: `Angemeldet als vorname.nachname@firma.de (Modus: send).` ✅
+5. Im Terminal steht: `Angemeldet als vorname.nachname@firma.de (Modus: draft).` ✅
 
 > Öffnet sich kein Browser? Dann zeigt das Terminal eine Adresse (oder einen Code) an –
 > einfach selbst im Browser öffnen.
@@ -348,6 +402,12 @@ dann die **komplette Adresse aus der Adresszeile** kopieren, im Terminal einfüg
 
 ```bash
 claude mcp add -s user lad-outlook -- ~/workspaces/lad-outlook-mcp/.venv/bin/lad-outlook-mcp serve
+```
+
+Windows (PowerShell; der Pfad muss vollständig ausgeschrieben sein):
+
+```powershell
+claude mcp add -s user lad-outlook -- "$env:USERPROFILE\workspaces\lad-outlook-mcp\.venv\Scripts\lad-outlook-mcp.exe" serve
 ```
 
 Prüfen:
@@ -467,6 +527,8 @@ Weitere Schutzmaßnahmen:
 | `Senden blockiert – Empfänger nicht erlaubt` | Empfänger steht nicht auf der Erlaubt-Liste | Gewollt? Dann Domain/Adresse in `config.env` ergänzen |
 | `Anhang … liegt nicht im erlaubten Ordner` | Datei liegt woanders | Datei in den Outbox-Ordner kopieren ([Kapitel 9](#9-anhänge-versenden)) |
 | `claude mcp list` zeigt `✘ Failed` | Pfad falsch oder Installation kaputt | Pfad prüfen; Teil B Schritt 3 wiederholen |
+| `OUTLOOK_MODE=send ist nur mit eigener App-Registrierung möglich` | Senden ohne eigene App eingestellt | `OUTLOOK_MODE=draft` setzen – oder eigene App einrichten ([Teil A](#3-teil-a--die-app-registrierung-bei-microsoft)) |
+| Windows: `No module named 'pywintypes'` | Paket `pywin32` fehlt (wird vom MCP-SDK benötigt) | Teil B Schritt 3 wiederholen |
 
 Immer hilfreich als erster Schritt:
 
@@ -517,7 +579,7 @@ Alle Werte stehen in `~/.config/lad-outlook-mcp/config.env` (oder als Umgebungsv
 | `OUTLOOK_TENANT_ID` | `organizations` | Verzeichnis-ID; bei eigener App Pflicht |
 | `OUTLOOK_CLIENT_SECRET` | leer | Secret einer eigenen Web-App (Variante 1) |
 | `OUTLOOK_REDIRECT_URI` | `http://localhost:3333/auth/callback` | Muss zur App-Registrierung passen (nur mit Secret) |
-| `OUTLOOK_MODE` | `send` | `readonly`, `draft` oder `send` |
+| `OUTLOOK_MODE` | `draft` | `readonly`, `draft` oder `send` (`send` nur mit eigener App) |
 | `OUTLOOK_ALLOWED_RECIPIENT_DOMAINS` | leer | Erlaubte Empfänger-Domains (Komma-getrennt) |
 | `OUTLOOK_ALLOWED_RECIPIENTS` | leer | Zusätzlich erlaubte Einzeladressen |
 | `OUTLOOK_CONFIRM_SEND` | `auto` | `auto` · `always` (ohne Bestätigungsfenster kein Senden) · `never` |
@@ -533,7 +595,7 @@ Rechte je Modus (werden bei der Anmeldung angefragt):
 |---|---|
 | `readonly` | `User.Read`, `Mail.Read` |
 | `draft` | `User.Read`, `Mail.ReadWrite` |
-| `send` | `User.Read`, `Mail.ReadWrite`, `Mail.Send` |
+| `send` (nur eigene App) | `User.Read`, `Mail.ReadWrite`, `Mail.Send` |
 
 Nach einer Änderung von `OUTLOOK_MODE` bitte neu `login` ausführen.
 
@@ -558,7 +620,7 @@ Diese Werkzeuge bekommt der KI-Assistent zur Verfügung gestellt:
 | `create_forward_draft` | draft | Weiterleitung inkl. Original-Anhänge |
 | `update_draft` | draft | Entwurf ändern, Anhänge ergänzen |
 | `delete_draft` | draft | Entwurf verwerfen (nur Entwürfe!) |
-| `send_draft` | send | Entwurf senden – mit Empfänger-Prüfung und Bestätigung |
+| `send_draft` | send (nur eigene App) | Entwurf senden – mit Empfänger-Prüfung und Bestätigung |
 
 Ordnernamen dürfen auch deutsch sein: „Posteingang“, „Gesendete Elemente“, „Entwürfe“,
 „Archiv“, „Junk-E-Mail“ – oder ein Pfad wie `Posteingang/Projekte`.

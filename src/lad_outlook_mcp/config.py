@@ -9,6 +9,7 @@ from pathlib import Path
 DEFAULT_ENV_FILE = Path("~/.config/lad-outlook-mcp/config.env").expanduser()
 
 MODES = ("readonly", "draft", "send")
+DEFAULT_MODE = "draft"
 CONFIRM_MODES = ("auto", "always", "never")
 
 # Delegierte Graph-Rechte je Modus (least privilege).
@@ -55,7 +56,7 @@ class Config:
     tenant_id: str
     client_secret: str = field(default="", repr=False)
     redirect_uri: str = "http://localhost:3333/auth/callback"
-    mode: str = "send"
+    mode: str = DEFAULT_MODE
     confirm_send: str = "auto"
     allowed_domains: frozenset[str] = field(default_factory=frozenset)
     allowed_recipients: frozenset[str] = field(default_factory=frozenset)
@@ -96,9 +97,18 @@ class Config:
         if tenant_id.lower() in ("common", "consumers"):
             raise ConfigError("OUTLOOK_TENANT_ID muss eine Tenant-ID oder 'organizations' sein.")
 
-        mode = env.get("OUTLOOK_MODE", "send").strip().lower()
+        mode = (env.get("OUTLOOK_MODE", "").strip() or DEFAULT_MODE).lower()
         if mode not in MODES:
             raise ConfigError(f"OUTLOOK_MODE muss einer von {MODES} sein, nicht {mode!r}.")
+        # Senden nur über eine eigene App-Registrierung: Die Admin-Zustimmung für Mail.Send soll
+        # gezielt für dieses Programm erteilt (und gesperrt) werden – nicht für die allgemeine
+        # Microsoft-App "Graph Command Line Tools", die auch Graph PowerShell nutzt.
+        if mode == "send" and client_id == GRAPH_CLI_CLIENT_ID:
+            raise ConfigError(
+                "OUTLOOK_MODE=send ist nur mit eigener App-Registrierung möglich "
+                "(OUTLOOK_CLIENT_ID und OUTLOOK_TENANT_ID setzen, README Teil A). "
+                "Ohne eigene App: OUTLOOK_MODE=draft oder readonly."
+            )
 
         confirm = env.get("OUTLOOK_CONFIRM_SEND", "auto").strip().lower()
         if confirm not in CONFIRM_MODES:

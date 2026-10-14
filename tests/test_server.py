@@ -58,7 +58,7 @@ class FakeGraph:
 def make(tmp_path, fake, **env):
     cfg = Config.load({
         "OUTLOOK_CLIENT_ID": "cid", "OUTLOOK_TENANT_ID": "tid", "OUTLOOK_DATA_DIR": str(tmp_path),
-        "OUTLOOK_ALLOWED_RECIPIENT_DOMAINS": "dension-dental.de", **env,
+        "OUTLOOK_ALLOWED_RECIPIENT_DOMAINS": "dension-dental.de", "OUTLOOK_MODE": "send", **env,
     })
     graph = Graph(lambda: "token", transport=httpx.MockTransport(fake.handler))
     return cfg, build_server(cfg, graph)
